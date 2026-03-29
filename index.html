@@ -13,26 +13,6 @@
             overflow-x: hidden;
         }
 
-        #start-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: #000;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            z-index: 200;
-            cursor: pointer;
-        }
-
-        #start-overlay h2 {
-            margin-bottom: 20px;
-            letter-spacing: 4px;
-        }
-
         nav {
             position: fixed;
             top: 0;
@@ -55,7 +35,7 @@
         }
 
         #video-container {
-            height: 400vh; /* Scroll length */
+            height: 400vh;
             position: relative;
         }
 
@@ -67,6 +47,13 @@
             height: 100%;
             object-fit: cover;
             z-index: 1;
+            opacity: 0;
+            transition: opacity 0.1s; /* Tiny fade for smoothness */
+        }
+
+        video.active {
+            opacity: 1;
+            z-index: 2;
         }
 
         #controls {
@@ -85,12 +72,6 @@
             color: #000;
             border: none;
             border-radius: 50px;
-            transition: transform 0.2s, background 0.2s;
-        }
-
-        button:hover {
-            background: #ddd;
-            transform: scale(1.05);
         }
 
         .info {
@@ -102,7 +83,6 @@
             border-radius: 30px;
             z-index: 100;
             font-size: 0.9rem;
-            border: 1px solid rgba(255,255,255,0.1);
         }
 
         footer {
@@ -116,19 +96,19 @@
             text-align: center;
             font-size: 0.8rem;
             color: #888;
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
         }
     </style>
 </head>
 <body>
 
-    <nav>
-        <h1>Scrub PoC</h1>
-    </nav>
+    <nav><h1>Scrub PoC</h1></nav>
 
     <div id="video-container">
-        <video id="v" preload="auto" muted playsinline>
+        <video id="v1" class="active" preload="auto" muted playsinline>
             <source src="dark-rotoscoping-final.mp4" type="video/mp4">
+        </video>
+        <video id="v2" preload="auto" muted playsinline>
+            <source src="f6a67db576e54346b3dc3ecdd17852b6-final.mp4" type="video/mp4">
         </video>
     </div>
 
@@ -136,79 +116,50 @@
         <button id="swapBtn">Change Roof</button>
     </div>
 
-    <div class="info">
-        Scroll down to scrub the timeline
-    </div>
-
-    <footer>
-        &copy; 2026 Video Scrub Experience. All rights reserved.
-    </footer>
+    <div class="info">Scroll down to scrub</div>
+    <footer>&copy; 2026 Video Scrub PoC</footer>
 
     <script>
-        const video = document.getElementById('v');
+        const v1 = document.getElementById('v1');
+        const v2 = document.getElementById('v2');
         const container = document.getElementById('video-container');
         const swapBtn = document.getElementById('swapBtn');
+        
+        let activeVideo = v1;
 
-        const videos = [
-            'dark-rotoscoping-final.mp4',
-            'f6a67db576e54346b3dc3ecdd17852b6-final.mp4'
-        ];
-        let currentIdx = 0;
-        let isWarmedUp = false;
-
-        // Force video to load and "warm up"
-        async function initVideo() {
-            if (isWarmedUp) return;
+        async function warmUp() {
             try {
-                await video.play();
-                video.pause();
-                isWarmedUp = true;
-            } catch (e) {
-                // Silently wait for interaction
-            }
+                await v1.play(); v1.pause();
+                await v2.play(); v2.pause();
+            } catch(e) {}
         }
 
         swapBtn.addEventListener('click', () => {
-            isWarmedUp = false;
-            currentIdx = (currentIdx + 1) % videos.length;
-            video.src = videos[currentIdx];
-            video.load();
-            initVideo();
+            if (activeVideo === v1) {
+                v1.classList.remove('active');
+                v2.classList.add('active');
+                activeVideo = v2;
+            } else {
+                v2.classList.remove('active');
+                v1.classList.add('active');
+                activeVideo = v1;
+            }
         });
 
         function scrub() {
             const rect = container.getBoundingClientRect();
             const totalScrollable = rect.height - window.innerHeight;
-            const currentScroll = -rect.top;
-            const scrollPercent = Math.max(0, Math.min(1, currentScroll / totalScrollable));
+            const scrollPercent = Math.max(0, Math.min(1, -rect.top / totalScrollable));
             
-            if (video.duration && !isNaN(video.duration)) {
-                video.currentTime = video.duration * scrollPercent;
-            }
+            if (v1.duration) v1.currentTime = v1.duration * scrollPercent;
+            if (v2.duration) v2.currentTime = v2.duration * scrollPercent;
             
             requestAnimationFrame(scrub);
         }
 
-        ['touchstart', 'click', 'wheel', 'scroll'].forEach(event => {
-            window.addEventListener(event, initVideo, {once: true, passive: true});
-        });
-
+        window.addEventListener('scroll', warmUp, {once: true, passive: true});
+        window.addEventListener('click', warmUp, {once: true, passive: true});
         requestAnimationFrame(scrub);
     </script>
-
-        function scrub() {
-            const rect = container.getBoundingClientRect();
-            const totalScrollable = rect.height - window.innerHeight;
-            const currentScroll = -rect.top;
-            const scrollPercent = Math.max(0, Math.min(1, currentScroll / totalScrollable));
-            
-            if (video.duration && !isNaN(video.duration)) {
-                video.currentTime = video.duration * scrollPercent;
-            }
-            
-            requestAnimationFrame(scrub);
-        }
-
-        requestAnimationFrame(scrub);
-    </script></body>
+</body>
 </html>
