@@ -13,6 +13,26 @@
             overflow-x: hidden;
         }
 
+        #start-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 200;
+            cursor: pointer;
+        }
+
+        #start-overlay h2 {
+            margin-bottom: 20px;
+            letter-spacing: 4px;
+        }
+
         nav {
             position: fixed;
             top: 0;
@@ -102,6 +122,11 @@
 </head>
 <body>
 
+    <div id="start-overlay" onclick="startApp()">
+        <h2>SCRUB EXPERIENCE</h2>
+        <button>CLICK TO START</button>
+    </div>
+
     <nav>
         <h1>Scrub PoC</h1>
     </nav>
@@ -128,29 +153,35 @@
         const video = document.getElementById('v');
         const container = document.getElementById('video-container');
         const swapBtn = document.getElementById('swapBtn');
+        const overlay = document.getElementById('start-overlay');
 
         const videos = [
             'dark-rotoscoping-final.mp4',
             'f6a67db576e54346b3dc3ecdd17852b6-final.mp4'
         ];
         let currentIdx = 0;
-        let isWarmedUp = false;
 
-        // Force video to load and "warm up"
+        function startApp() {
+            overlay.style.display = 'none';
+            initVideo();
+        }
+
         async function initVideo() {
-            if (isWarmedUp) return;
             try {
                 await video.play();
                 video.pause();
-                isWarmedUp = true;
-                console.log("Video warmed up successfully");
+                console.log("Video warmed up");
             } catch (e) {
-                console.log("Waiting for interaction to warm up...");
+                console.error("Error warming up video:", e);
             }
         }
 
+        video.addEventListener('error', (e) => {
+            console.error("Video failed to load. Check paths.", e);
+            alert("Video failed to load: " + video.currentSrc);
+        });
+
         swapBtn.addEventListener('click', () => {
-            isWarmedUp = false;
             currentIdx = (currentIdx + 1) % videos.length;
             video.src = videos[currentIdx];
             video.load();
@@ -162,21 +193,13 @@
             const totalScrollable = rect.height - window.innerHeight;
             const currentScroll = -rect.top;
             const scrollPercent = Math.max(0, Math.min(1, currentScroll / totalScrollable));
-
-            // If duration is missing, try to force a load
-            if (!video.duration || isNaN(video.duration)) {
-                if (video.readyState === 0) video.load();
-            } else {
+            
+            if (video.duration && !isNaN(video.duration)) {
                 video.currentTime = video.duration * scrollPercent;
             }
-
+            
             requestAnimationFrame(scrub);
         }
-
-        // Trigger warm up on any user action
-        ['touchstart', 'click', 'wheel', 'scroll'].forEach(event => {
-            window.addEventListener(event, initVideo, {once: true, passive: true});
-        });
 
         requestAnimationFrame(scrub);
     </script></body>
