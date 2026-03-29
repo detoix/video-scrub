@@ -174,15 +174,13 @@
         });
 
         function scrub() {
-            if (isLoaded) {
-                const scrollY = window.pageYOffset || document.documentElement.scrollTop;
-                const totalScrollable = container.offsetHeight - window.innerHeight;
-                const scrollPercent = Math.max(0, Math.min(1, scrollY / totalScrollable));
-                
-                if (v1.duration) v1.currentTime = v1.duration * scrollPercent;
-                if (v2.duration) v2.currentTime = v2.duration * scrollPercent;
-            }
-            requestAnimationFrame(scrub);
+            if (!isLoaded) return;
+            const scrollY = window.pageYOffset || document.documentElement.scrollTop;
+            const totalScrollable = container.offsetHeight - window.innerHeight;
+            const scrollPercent = Math.max(0, Math.min(1, scrollY / totalScrollable));
+
+            if (v1.duration) v1.currentTime = v1.duration * scrollPercent;
+            if (v2.duration) v2.currentTime = v2.duration * scrollPercent;
         }
 
         // Start loading the blobs immediately
@@ -193,7 +191,7 @@
             window.addEventListener(event, warmUp, {once: true, passive: true});
         });
 
-        requestAnimationFrame(scrub);
+        window.addEventListener('scroll', scrub, {passive: true});
     </script>
 </body>
 </html>
