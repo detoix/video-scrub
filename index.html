@@ -104,19 +104,16 @@
     <nav><h1>Scrub PoC</h1></nav>
 
     <div id="video-container">
-        <video id="v1" class="active" preload="auto" muted playsinline webkit-playsinline>
-            <source src="dark-rotoscoping-final.mp4" type="video/mp4">
-        </video>
-        <video id="v2" preload="auto" muted playsinline webkit-playsinline>
-            <source src="f6a67db576e54346b3dc3ecdd17852b6-final.mp4" type="video/mp4">
-        </video>
+        <!-- src is injected by JS to use local Blobs -->
+        <video id="v1" class="active" preload="auto" muted playsinline webkit-playsinline></video>
+        <video id="v2" preload="auto" muted playsinline webkit-playsinline></video>
     </div>
 
     <div id="controls">
         <button id="swapBtn">Change Roof</button>
     </div>
 
-    <div class="info">Scroll down to scrub</div>
+    <div class="info">Loading videos...</div>
     <footer>&copy; 2026 Video Scrub PoC</footer>
 
     <script>
@@ -124,32 +121,47 @@
         const v2 = document.getElementById('v2');
         const container = document.getElementById('video-container');
         const swapBtn = document.getElementById('swapBtn');
+        const info = document.querySelector('.info');
         
         let activeVideo = v1;
+        let isLoaded = false;
         let isWarmedUp = false;
 
-        async function warmUp() {
-            if (isWarmedUp) return;
+        // FETCH VIDEOS AS BLOBS
+        // This is the "magic bullet" for mobile scrubbing. 
+        // iOS Safari chokes on HTTP Range Requests when scrubbing rapidly. 
+        // Loading it fully into memory bypasses the network entirely.
+        async function preloadVideos() {
             try {
-                // We need an explicit play then pause to "unlock" the decoder on mobile
-                const p1 = v1.play();
-                const p2 = v2.play();
+                const [req1, req2] = await Promise.all([
+                    fetch('dark-rotoscoping-final.mp4'),
+                    fetch('f6a67db576e54346b3dc3ecdd17852b6-final.mp4')
+                ]);
                 
-                // Wait for play to actually start before pausing
-                setTimeout(() => {
-                    v1.pause();
-                    v2.pause();
-                    isWarmedUp = true;
-                    console.log("Videos unlocked for mobile");
-                }, 100);
+                const blob1 = await req1.blob();
+                const blob2 = await req2.blob();
                 
+                v1.src = URL.createObjectURL(blob1);
+                v2.src = URL.createObjectURL(blob2);
+                
+                isLoaded = true;
+                info.innerText = "Ready! Scroll down to scrub.";
             } catch(e) {
-                console.log("Warm up failed, will retry on next interaction");
+                info.innerText = "Error loading videos.";
+                console.error(e);
             }
         }
 
+        function warmUp() {
+            if (!isLoaded || isWarmedUp) return;
+            isWarmedUp = true;
+            // Native promises handle the play request, unlocking mobile playback
+            v1.play().then(() => v1.pause()).catch(() => { isWarmedUp = false; });
+            v2.play().then(() => v2.pause()).catch(() => { isWarmedUp = false; });
+        }
+
         swapBtn.addEventListener('click', () => {
-            warmUp(); // Ensure warmed up on button click too
+            warmUp();
             if (activeVideo === v1) {
                 v1.classList.remove('active');
                 v2.classList.add('active');
@@ -162,21 +174,22 @@
         });
 
         function scrub() {
-            const scrollY = window.pageYOffset || document.documentElement.scrollTop;
-            const containerHeight = container.offsetHeight;
-            const viewportHeight = window.innerHeight;
-            
-            const totalScrollable = containerHeight - viewportHeight;
-            const scrollPercent = Math.max(0, Math.min(1, scrollY / totalScrollable));
-            
-            if (v1.duration) v1.currentTime = v1.duration * scrollPercent;
-            if (v2.duration) v2.currentTime = v2.duration * scrollPercent;
-            
+            if (isLoaded) {
+                const scrollY = window.pageYOffset || document.documentElement.scrollTop;
+                const totalScrollable = container.offsetHeight - window.innerHeight;
+                const scrollPercent = Math.max(0, Math.min(1, scrollY / totalScrollable));
+                
+                if (v1.duration) v1.currentTime = v1.duration * scrollPercent;
+                if (v2.duration) v2.currentTime = v2.duration * scrollPercent;
+            }
             requestAnimationFrame(scrub);
         }
 
-        // Multiple event listeners for mobile "unlock"
-        ['touchstart', 'mousedown', 'wheel', 'scroll'].forEach(event => {
+        // Start loading the blobs immediately
+        preloadVideos();
+
+        // Bind warmup to initial user touch
+        ['touchstart', 'mousedown'].forEach(event => {
             window.addEventListener(event, warmUp, {once: true, passive: true});
         });
 
