@@ -175,6 +175,8 @@
 
         let latestScrollY = 0;
         let rafScheduled = false;
+        let touchStartY = 0;
+        let scrollAtTouchStart = 0;
 
         function scrubFrame() {
             rafScheduled = false;
@@ -185,6 +187,13 @@
             if (v2.duration) v2.currentTime = v2.duration * scrollPercent;
         }
 
+        function scheduleFrame() {
+            if (!rafScheduled) {
+                rafScheduled = true;
+                requestAnimationFrame(scrubFrame);
+            }
+        }
+
         // Start loading the blobs immediately
         preloadVideos();
 
@@ -193,12 +202,23 @@
             window.addEventListener(event, warmUp, {once: true, passive: true});
         });
 
+        // On touchstart, snapshot the real scroll position
+        window.addEventListener('touchstart', (e) => {
+            touchStartY = e.touches[0].clientY;
+            scrollAtTouchStart = window.pageYOffset || document.documentElement.scrollTop;
+        }, {passive: true});
+
+        // During drag, compute scroll from finger delta — don't trust pageYOffset
+        window.addEventListener('touchmove', (e) => {
+            const dy = touchStartY - e.touches[0].clientY;
+            latestScrollY = Math.max(0, scrollAtTouchStart + dy);
+            scheduleFrame();
+        }, {passive: true});
+
+        // scroll event covers momentum and non-touch scrolling (mouse wheel, keyboard)
         window.addEventListener('scroll', () => {
             latestScrollY = window.pageYOffset || document.documentElement.scrollTop;
-            if (!rafScheduled) {
-                rafScheduled = true;
-                requestAnimationFrame(scrubFrame);
-            }
+            scheduleFrame();
         }, {passive: true});
     </script>
 </body>
