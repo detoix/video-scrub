@@ -109,3 +109,19 @@ export function createTraversal(connection, currentNodeId) {
 
   return null;
 }
+
+export function getBackgroundPreloadVideoPaths() {
+  const paths = new Set();
+
+  for (const connection of CONNECTIONS) {
+    if (connection.videoPath) {
+      paths.add(connection.videoPath);
+    }
+
+    if (connection.reverseVideoPath) {
+      paths.add(connection.reverseVideoPath);
+    }
+  }
+
+  return [...paths];
+}

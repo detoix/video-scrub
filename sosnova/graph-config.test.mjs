@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {
   CONNECTIONS,
   createTraversal,
+  getBackgroundPreloadVideoPaths,
   getConnectionById,
   getNodeById,
   getOutgoingConnections
@@ -38,4 +39,14 @@ test('uses asset reversal for the between-houses connection', () => {
   assert.equal(reverseTraversal.targetNodeId, 'house-1');
   assert.equal(reverseTraversal.playback.mode, 'asset');
   assert.equal(reverseTraversal.playback.videoPath, './between-reversed-web.mp4');
+});
+
+test('lists unique transition videos to preload after the master video is ready', () => {
+  assert.deepEqual(getBackgroundPreloadVideoPaths().sort(), [
+    '../sosnova-reversed-web.mp4',
+    './2nd-reversed-web.mp4',
+    './2nd-web.mp4',
+    './between-reversed-web.mp4',
+    './between-web.mp4'
+  ]);
 });

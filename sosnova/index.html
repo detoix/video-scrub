@@ -245,7 +245,7 @@
     <script type="module">
         import { createHeroController } from './hero-controller.js';
         import { createReversePlayback } from './reverse-playback.js';
-        import { createTraversal, getConnectionById, getNodeById, getOutgoingConnections } from './graph-config.js';
+        import { createTraversal, getBackgroundPreloadVideoPaths, getConnectionById, getNodeById, getOutgoingConnections } from './graph-config.js';
 
         const REVERSE_BLEND_WINDOW = 0.25;
 
@@ -263,6 +263,7 @@
 
         let currentVideoKey = null;
         let pendingAction = null;
+        const backgroundPreloadPromises = new Map();
 
         const reversePlayback = createReversePlayback({
             stepSize: 1 / 30,
@@ -386,6 +387,43 @@
             });
 
             currentVideoKey = videoPath;
+        }
+
+        function preloadVideoAsset(videoPath) {
+            if (!videoPath) {
+                return Promise.resolve();
+            }
+
+            if (backgroundPreloadPromises.has(videoPath)) {
+                return backgroundPreloadPromises.get(videoPath);
+            }
+
+            const preloadPromise = new Promise((resolve) => {
+                const preloadVideo = document.createElement('video');
+                preloadVideo.preload = 'auto';
+                preloadVideo.muted = true;
+                preloadVideo.playsInline = true;
+                preloadVideo.src = videoPath;
+
+                const done = () => {
+                    preloadVideo.removeEventListener('loadeddata', done);
+                    preloadVideo.removeEventListener('error', done);
+                    resolve();
+                };
+
+                preloadVideo.addEventListener('loadeddata', done, { once: true });
+                preloadVideo.addEventListener('error', done, { once: true });
+                preloadVideo.load();
+            });
+
+            backgroundPreloadPromises.set(videoPath, preloadPromise);
+            return preloadPromise;
+        }
+
+        async function preloadTransitionVideos() {
+            for (const videoPath of getBackgroundPreloadVideoPaths()) {
+                await preloadVideoAsset(videoPath);
+            }
         }
 
         async function seekVideoTo(time) {
@@ -565,6 +603,9 @@
         syncNodeUi();
         ensureMasterVideo().then(() => {
             masterVideo.play().catch(() => {});
+            preloadTransitionVideos().catch((error) => {
+                console.error(error);
+            });
         }).catch((error) => {
             console.error(error);
         });
