@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Video Scroll Scrub PoC</title>
     <style>
         body {
@@ -11,25 +11,26 @@
             background: #000;
             color: #fff;
             overflow-x: hidden;
+            -webkit-overflow-scrolling: touch; /* Better mobile scroll */
         }
 
         nav {
             position: fixed;
             top: 0;
             width: 100%;
-            padding: 20px;
-            background: rgba(0, 0, 0, 0.6);
+            padding: 15px 20px;
+            background: rgba(0, 0, 0, 0.7);
             backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
             z-index: 100;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
         }
 
         nav h1 {
             margin: 0;
-            font-size: 1.2rem;
+            font-size: 1rem;
             text-transform: uppercase;
             letter-spacing: 2px;
         }
@@ -47,6 +48,8 @@
             height: 100%;
             object-fit: cover;
             z-index: 1;
+            /* Critical for mobile playback */
+            pointer-events: none; 
         }
 
         video.active {
@@ -55,43 +58,43 @@
 
         #controls {
             position: fixed;
-            top: 80px;
+            top: 70px;
             right: 20px;
             z-index: 100;
         }
 
         button {
-            padding: 12px 24px;
-            font-size: 0.9rem;
+            padding: 10px 20px;
+            font-size: 0.8rem;
             font-weight: bold;
             cursor: pointer;
             background: #fff;
             color: #000;
             border: none;
             border-radius: 50px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
         }
 
         .info {
             position: fixed;
-            bottom: 80px;
+            bottom: 60px;
             left: 20px;
-            background: rgba(0, 0, 0, 0.4);
-            padding: 15px 25px;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px 20px;
             border-radius: 30px;
             z-index: 100;
-            font-size: 0.9rem;
+            font-size: 0.8rem;
         }
 
         footer {
             position: fixed;
             bottom: 0;
             width: 100%;
-            padding: 15px;
-            background: rgba(0, 0, 0, 0.6);
-            backdrop-filter: blur(10px);
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.7);
             z-index: 100;
             text-align: center;
-            font-size: 0.8rem;
+            font-size: 0.7rem;
             color: #888;
         }
     </style>
@@ -101,10 +104,10 @@
     <nav><h1>Scrub PoC</h1></nav>
 
     <div id="video-container">
-        <video id="v1" class="active" preload="auto" muted playsinline>
+        <video id="v1" class="active" preload="auto" muted playsinline webkit-playsinline>
             <source src="dark-rotoscoping-final.mp4" type="video/mp4">
         </video>
-        <video id="v2" preload="auto" muted playsinline>
+        <video id="v2" preload="auto" muted playsinline webkit-playsinline>
             <source src="f6a67db576e54346b3dc3ecdd17852b6-final.mp4" type="video/mp4">
         </video>
     </div>
@@ -123,15 +126,30 @@
         const swapBtn = document.getElementById('swapBtn');
         
         let activeVideo = v1;
+        let isWarmedUp = false;
 
         async function warmUp() {
+            if (isWarmedUp) return;
             try {
-                await v1.play(); v1.pause();
-                await v2.play(); v2.pause();
-            } catch(e) {}
+                // We need an explicit play then pause to "unlock" the decoder on mobile
+                const p1 = v1.play();
+                const p2 = v2.play();
+                
+                // Wait for play to actually start before pausing
+                setTimeout(() => {
+                    v1.pause();
+                    v2.pause();
+                    isWarmedUp = true;
+                    console.log("Videos unlocked for mobile");
+                }, 100);
+                
+            } catch(e) {
+                console.log("Warm up failed, will retry on next interaction");
+            }
         }
 
         swapBtn.addEventListener('click', () => {
+            warmUp(); // Ensure warmed up on button click too
             if (activeVideo === v1) {
                 v1.classList.remove('active');
                 v2.classList.add('active');
@@ -144,9 +162,12 @@
         });
 
         function scrub() {
-            const rect = container.getBoundingClientRect();
-            const totalScrollable = rect.height - window.innerHeight;
-            const scrollPercent = Math.max(0, Math.min(1, -rect.top / totalScrollable));
+            const scrollY = window.pageYOffset || document.documentElement.scrollTop;
+            const containerHeight = container.offsetHeight;
+            const viewportHeight = window.innerHeight;
+            
+            const totalScrollable = containerHeight - viewportHeight;
+            const scrollPercent = Math.max(0, Math.min(1, scrollY / totalScrollable));
             
             if (v1.duration) v1.currentTime = v1.duration * scrollPercent;
             if (v2.duration) v2.currentTime = v2.duration * scrollPercent;
@@ -154,8 +175,11 @@
             requestAnimationFrame(scrub);
         }
 
-        window.addEventListener('scroll', warmUp, {once: true, passive: true});
-        window.addEventListener('click', warmUp, {once: true, passive: true});
+        // Multiple event listeners for mobile "unlock"
+        ['touchstart', 'mousedown', 'wheel', 'scroll'].forEach(event => {
+            window.addEventListener(event, warmUp, {once: true, passive: true});
+        });
+
         requestAnimationFrame(scrub);
     </script>
 </body>
