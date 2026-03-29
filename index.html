@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Scroll Scrub PoC</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #000;
+            color: #fff;
+            overflow-x: hidden;
+        }
+
+        nav {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(10px);
+            z-index: 100;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        nav h1 {
+            margin: 0;
+            font-size: 1.2rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        #video-container {
+            height: 400vh; /* Scroll length */
+            position: relative;
+        }
+
+        video {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: 1;
+        }
+
+        #controls {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            z-index: 100;
+        }
+
+        button {
+            padding: 12px 24px;
+            font-size: 0.9rem;
+            font-weight: bold;
+            cursor: pointer;
+            background: #fff;
+            color: #000;
+            border: none;
+            border-radius: 50px;
+            transition: transform 0.2s, background 0.2s;
+        }
+
+        button:hover {
+            background: #ddd;
+            transform: scale(1.05);
+        }
+
+        .info {
+            position: fixed;
+            bottom: 80px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.4);
+            padding: 15px 25px;
+            border-radius: 30px;
+            z-index: 100;
+            font-size: 0.9rem;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        footer {
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(10px);
+            z-index: 100;
+            text-align: center;
+            font-size: 0.8rem;
+            color: #888;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+    </style>
+</head>
+<body>
+
+    <nav>
+        <h1>Scrub PoC</h1>
+    </nav>
+
+    <div id="video-container">
+        <video id="v" preload="auto" muted playsinline>
+            <source src="dark-rotoscoping-final.mp4" type="video/mp4">
+        </video>
+    </div>
+
+    <div id="controls">
+        <button id="swapBtn">Change Roof</button>
+    </div>
+
+    <div class="info">
+        Scroll down to scrub the timeline
+    </div>
+
+    <footer>
+        &copy; 2026 Video Scrub Experience. All rights reserved.
+    </footer>
+
+    <script>
+        const video = document.getElementById('v');
+        const container = document.getElementById('video-container');
+        const swapBtn = document.getElementById('swapBtn');
+
+        const videos = [
+            'dark-rotoscoping-final.mp4',
+            'f6a67db576e54346b3dc3ecdd17852b6-final.mp4'
+        ];
+        let currentIdx = 0;
+        let isWarmedUp = false;
+
+        // Force video to load and "warm up"
+        async function initVideo() {
+            if (isWarmedUp) return;
+            try {
+                await video.play();
+                video.pause();
+                isWarmedUp = true;
+                console.log("Video warmed up successfully");
+            } catch (e) {
+                console.log("Waiting for interaction to warm up...");
+            }
+        }
+
+        swapBtn.addEventListener('click', () => {
+            isWarmedUp = false;
+            currentIdx = (currentIdx + 1) % videos.length;
+            video.src = videos[currentIdx];
+            video.load();
+            initVideo();
+        });
+
+        function scrub() {
+            const rect = container.getBoundingClientRect();
+            const totalScrollable = rect.height - window.innerHeight;
+            const currentScroll = -rect.top;
+            const scrollPercent = Math.max(0, Math.min(1, currentScroll / totalScrollable));
+
+            // If duration is missing, try to force a load
+            if (!video.duration || isNaN(video.duration)) {
+                if (video.readyState === 0) video.load();
+            } else {
+                video.currentTime = video.duration * scrollPercent;
+            }
+
+            requestAnimationFrame(scrub);
+        }
+
+        // Trigger warm up on any user action
+        ['touchstart', 'click', 'wheel', 'scroll'].forEach(event => {
+            window.addEventListener(event, initVideo, {once: true, passive: true});
+        });
+
+        requestAnimationFrame(scrub);
+    </script></body>
+</html>
