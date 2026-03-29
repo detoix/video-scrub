@@ -4,7 +4,7 @@ export const NODES = [
     label: 'Master Plan',
     stillPath: '../C8_kompresja.jpeg',
     stillAlt: 'Sosnova master plan',
-    idleVideoPath: './master-plan-web.mp4',
+    idleVideoPath: './master-plan-h265.mp4',
     backConnectionId: null
   },
   {
@@ -32,8 +32,9 @@ export const CONNECTIONS = [
     maskPaths: {
       master: 'M 18 61 L 28 51 L 35 65 L 36 78 L 29 88 L 20 79 Z'
     },
-    videoPath: '../sosnova-reversed-web.mp4',
-    reverseMode: 'seek'
+    videoPath: '../sosnova-reversed-h265.mp4',
+    reverseMode: 'asset',
+    reverseVideoPath: '../sosnova-return-h265.mp4'
   },
   {
     id: 'master-house-2',
@@ -43,9 +44,9 @@ export const CONNECTIONS = [
     maskPaths: {
       master: 'M 37 44 L 31 51 L 36 65 L 37 77 L 43 69 L 43 57 Z'
     },
-    videoPath: './2nd-web.mp4',
+    videoPath: './2nd-h265.mp4',
     reverseMode: 'asset',
-    reverseVideoPath: './2nd-reversed-web.mp4'
+    reverseVideoPath: './2nd-reversed-h265.mp4'
   },
   {
     id: 'between-houses',
@@ -56,9 +57,9 @@ export const CONNECTIONS = [
       'house-1': 'M 40 24 L 54 26 L 62 41 L 62 71 L 49 79 L 49 43 Z',
       'house-2': 'M 20 30 L 36 30 L 31 47 L 31 73 L 15 71 L 15 47 Z'
     },
-    videoPath: './between-web.mp4',
+    videoPath: './between-h265.mp4',
     reverseMode: 'asset',
-    reverseVideoPath: './between-reversed-web.mp4'
+    reverseVideoPath: './between-reversed-h265.mp4'
   }
 ];
 
@@ -110,16 +111,22 @@ export function createTraversal(connection, currentNodeId) {
   return null;
 }
 
-export function getBackgroundPreloadVideoPaths() {
+export function getPreloadVideoPathsForNode(nodeId) {
   const paths = new Set();
+  const node = getNodeById(nodeId);
 
-  for (const connection of CONNECTIONS) {
-    if (connection.videoPath) {
-      paths.add(connection.videoPath);
+  for (const traversal of getOutgoingConnections(nodeId)) {
+    if (traversal?.playback?.videoPath) {
+      paths.add(traversal.playback.videoPath);
     }
+  }
 
-    if (connection.reverseVideoPath) {
-      paths.add(connection.reverseVideoPath);
+  if (node?.backConnectionId) {
+    const backConnection = getConnectionById(node.backConnectionId);
+    const backTraversal = backConnection ? createTraversal(backConnection, nodeId) : null;
+
+    if (backTraversal?.playback?.videoPath) {
+      paths.add(backTraversal.playback.videoPath);
     }
   }
 

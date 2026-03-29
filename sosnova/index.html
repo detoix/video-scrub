@@ -245,7 +245,7 @@
     <script type="module">
         import { createHeroController } from './hero-controller.js';
         import { createReversePlayback } from './reverse-playback.js';
-        import { createTraversal, getBackgroundPreloadVideoPaths, getConnectionById, getNodeById, getOutgoingConnections } from './graph-config.js';
+        import { createTraversal, getConnectionById, getNodeById, getOutgoingConnections, getPreloadVideoPathsForNode } from './graph-config.js';
 
         const REVERSE_BLEND_WINDOW = 0.25;
 
@@ -420,9 +420,13 @@
             return preloadPromise;
         }
 
-        async function preloadTransitionVideos() {
-            for (const videoPath of getBackgroundPreloadVideoPaths()) {
-                await preloadVideoAsset(videoPath);
+        function preloadCurrentNodeVideos() {
+            const { currentNodeId } = controller.getState();
+
+            for (const videoPath of getPreloadVideoPathsForNode(currentNodeId)) {
+                preloadVideoAsset(videoPath).catch((error) => {
+                    console.error(error);
+                });
             }
         }
 
@@ -554,6 +558,7 @@
             heroVideo.pause();
             pendingAction = null;
             syncNodeUi();
+            preloadCurrentNodeVideos();
             status.textContent = `${getNodeById(controller.getState().currentNodeId)?.label ?? 'Node'} ready.`;
         }
 
@@ -562,6 +567,7 @@
             heroVideo.pause();
             pendingAction = null;
             syncNodeUi();
+            preloadCurrentNodeVideos();
             status.textContent = `${getNodeById(controller.getState().currentNodeId)?.label ?? 'Node'} ready.`;
         }
 
@@ -603,9 +609,7 @@
         syncNodeUi();
         ensureMasterVideo().then(() => {
             masterVideo.play().catch(() => {});
-            preloadTransitionVideos().catch((error) => {
-                console.error(error);
-            });
+            preloadCurrentNodeVideos();
         }).catch((error) => {
             console.error(error);
         });
