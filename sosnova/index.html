@@ -36,6 +36,71 @@
             background: #02060b;
         }
 
+        .loading-overlay {
+            position: absolute;
+            inset: 0;
+            z-index: 5;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            background: radial-gradient(circle at top, rgba(19, 40, 63, 0.96) 0%, rgba(7, 17, 28, 0.98) 55%, rgba(2, 6, 11, 1) 100%);
+            transition: opacity 260ms ease, visibility 260ms ease;
+        }
+
+        .loading-overlay.hidden {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        .loading-card {
+            width: min(420px, 100%);
+            padding: 24px;
+            border: 1px solid var(--line);
+            border-radius: 28px;
+            background: linear-gradient(180deg, rgba(7, 17, 28, 0.74), rgba(7, 17, 28, 0.9));
+            backdrop-filter: blur(18px);
+        }
+
+        .loading-card h2 {
+            margin: 0 0 8px;
+            font-size: clamp(1.8rem, 4vw, 2.6rem);
+            line-height: 0.96;
+        }
+
+        .loading-card p {
+            margin: 0 0 18px;
+            color: var(--muted);
+            line-height: 1.5;
+        }
+
+        .loading-progress {
+            position: relative;
+            height: 10px;
+            border-radius: 999px;
+            overflow: hidden;
+            background: rgba(242, 239, 232, 0.12);
+        }
+
+        .loading-progress-bar {
+            height: 100%;
+            width: 0%;
+            border-radius: inherit;
+            background: linear-gradient(90deg, rgba(245, 203, 92, 0.92), rgba(255, 231, 150, 1));
+            transition: width 140ms ease;
+        }
+
+        .loading-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            margin-top: 12px;
+            font-size: 0.88rem;
+            color: rgba(255, 231, 150, 0.88);
+        }
+
         .media-layer {
             position: absolute;
             inset: 0;
@@ -185,6 +250,19 @@
 </head>
 <body>
     <main class="hero">
+        <div id="loadingOverlay" class="loading-overlay">
+            <div class="loading-card">
+                <h2>Loading Sosnova</h2>
+                <p>The full experience is warming up before interactions unlock.</p>
+                <div class="loading-progress" aria-hidden="true">
+                    <div id="loadingProgressBar" class="loading-progress-bar"></div>
+                </div>
+                <div class="loading-meta">
+                    <span id="loadingProgressLabel">Preparing assets…</span>
+                    <span id="loadingProgressValue">0%</span>
+                </div>
+            </div>
+        </div>
         <video
             id="masterVideo"
             class="media-layer visible"
@@ -245,7 +323,7 @@
     <script type="module">
         import { createHeroController } from './hero-controller.js';
         import { createReversePlayback } from './reverse-playback.js';
-        import { createTraversal, getConnectionById, getNodeById, getOutgoingConnections, getPreloadVideoPathsForNode } from './graph-config.js';
+        import { createTraversal, getAllRequiredAssetPaths, getConnectionById, getNodeById, getOutgoingConnections, getPreloadVideoPathsForNode } from './graph-config.js';
 
         const REVERSE_BLEND_WINDOW = 0.25;
 
@@ -256,6 +334,10 @@
         const endStill = document.getElementById('endStill');
         const backButton = document.getElementById('backButton');
         const status = document.getElementById('status');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const loadingProgressBar = document.getElementById('loadingProgressBar');
+        const loadingProgressLabel = document.getElementById('loadingProgressLabel');
+        const loadingProgressValue = document.getElementById('loadingProgressValue');
         const hotspotElements = [
             document.getElementById('houseHotspot1'),
             document.getElementById('houseHotspot2')
@@ -263,7 +345,9 @@
 
         let currentVideoKey = null;
         let pendingAction = null;
+        let experienceReady = false;
         const backgroundPreloadPromises = new Map();
+        const imagePreloadPromises = new Map();
 
         const reversePlayback = createReversePlayback({
             stepSize: 1 / 30,
@@ -328,6 +412,15 @@
             });
         }
 
+        function updateLoadingProgress(loadedCount, totalCount) {
+            const percent = totalCount === 0 ? 100 : Math.round((loadedCount / totalCount) * 100);
+            loadingProgressBar.style.width = `${percent}%`;
+            loadingProgressValue.textContent = `${percent}%`;
+            loadingProgressLabel.textContent = loadedCount >= totalCount
+                ? 'Experience ready.'
+                : `Loaded ${loadedCount} of ${totalCount} assets`;
+        }
+
         function renderTargetStill(nodeId) {
             const node = getNodeById(nodeId);
             if (!node) {
@@ -351,7 +444,7 @@
             setBackVisible(state.backVisible);
             clearHotspots();
 
-            if (isMaster) {
+            if (isMaster && experienceReady) {
                 masterVideo.play().catch(() => {});
             }
 
@@ -420,6 +513,33 @@
             return preloadPromise;
         }
 
+        function preloadImageAsset(imagePath) {
+            if (!imagePath) {
+                return Promise.resolve();
+            }
+
+            if (imagePreloadPromises.has(imagePath)) {
+                return imagePreloadPromises.get(imagePath);
+            }
+
+            const preloadPromise = new Promise((resolve) => {
+                const image = new Image();
+
+                const done = () => {
+                    image.removeEventListener('load', done);
+                    image.removeEventListener('error', done);
+                    resolve();
+                };
+
+                image.addEventListener('load', done, { once: true });
+                image.addEventListener('error', done, { once: true });
+                image.src = imagePath;
+            });
+
+            imagePreloadPromises.set(imagePath, preloadPromise);
+            return preloadPromise;
+        }
+
         function preloadCurrentNodeVideos() {
             const { currentNodeId } = controller.getState();
 
@@ -428,6 +548,31 @@
                     console.error(error);
                 });
             }
+        }
+
+        async function preloadExperienceAssets() {
+            const masterAssetPath = getNodeById('master')?.idleVideoPath ?? null;
+            const assetPaths = getAllRequiredAssetPaths();
+            let loadedCount = 0;
+
+            updateLoadingProgress(0, assetPaths.length);
+
+            await Promise.all(assetPaths.map(async (assetPath) => {
+                try {
+                    if (assetPath === masterAssetPath) {
+                        await ensureMasterVideo();
+                    } else if (/\.(mp4|webm|ogg)$/i.test(assetPath)) {
+                        await preloadVideoAsset(assetPath);
+                    } else {
+                        await preloadImageAsset(assetPath);
+                    }
+                } catch (error) {
+                    console.error(error);
+                } finally {
+                    loadedCount += 1;
+                    updateLoadingProgress(loadedCount, assetPaths.length);
+                }
+            }));
         }
 
         async function seekVideoTo(time) {
@@ -471,6 +616,10 @@
         }
 
         async function handleConnectionClick(event) {
+            if (!experienceReady) {
+                return;
+            }
+
             const action = controller.handleConnectionClick({
                 connectionId: event.currentTarget.dataset.connectionId,
                 targetNodeId: event.currentTarget.dataset.targetNodeId,
@@ -506,6 +655,10 @@
         }
 
         async function handleBackClick() {
+            if (!experienceReady) {
+                return;
+            }
+
             const action = controller.handleBackClick();
             if (action.type !== 'play-reverse') {
                 return;
@@ -573,7 +726,7 @@
 
         hotspotElements.forEach((element) => {
             element.addEventListener('mouseenter', () => {
-                if (controller.getState().mode === 'node' && element.dataset.connectionId) {
+                if (experienceReady && controller.getState().mode === 'node' && element.dataset.connectionId) {
                     element.classList.add('is-active');
                 }
             });
@@ -607,13 +760,21 @@
         });
 
         syncNodeUi();
-        ensureMasterVideo().then(() => {
+        preloadExperienceAssets().then(() => {
+            experienceReady = true;
+            loadingOverlay.classList.add('hidden');
+            syncNodeUi();
             masterVideo.play().catch(() => {});
             preloadCurrentNodeVideos();
+            status.textContent = 'Ready. Hover a path and click to move through the graph.';
         }).catch((error) => {
             console.error(error);
+            experienceReady = true;
+            loadingOverlay.classList.add('hidden');
+            syncNodeUi();
+            status.textContent = 'Ready. Hover a path and click to move through the graph.';
         });
-        status.textContent = 'Ready. Hover a path and click to move through the graph.';
+        status.textContent = 'Loading Sosnova experience…';
         window.addEventListener('beforeunload', cancelReversePlayback);
     </script>
 </body>

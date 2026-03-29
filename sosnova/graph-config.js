@@ -132,3 +132,29 @@ export function getPreloadVideoPathsForNode(nodeId) {
 
   return [...paths];
 }
+
+export function getAllRequiredAssetPaths() {
+  const paths = new Set();
+
+  for (const node of NODES) {
+    if (node.stillPath) {
+      paths.add(node.stillPath);
+    }
+
+    if (node.idleVideoPath) {
+      paths.add(node.idleVideoPath);
+    }
+  }
+
+  for (const connection of CONNECTIONS) {
+    if (connection.videoPath) {
+      paths.add(connection.videoPath);
+    }
+
+    if (connection.reverseVideoPath) {
+      paths.add(connection.reverseVideoPath);
+    }
+  }
+
+  return [...paths];
+}

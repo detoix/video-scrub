@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {
   CONNECTIONS,
   createTraversal,
+  getAllRequiredAssetPaths,
   getConnectionById,
   getNodeById,
   getOutgoingConnections,
@@ -66,5 +67,20 @@ test('preloads house-specific outgoing and back clips lazily on close-ups', () =
   assert.deepEqual(getPreloadVideoPathsForNode('house-2').sort(), [
     './2nd-reversed-h265.mp4',
     './between-reversed-h265.mp4'
+  ]);
+});
+
+test('lists every still and video asset needed for the full preload gate', () => {
+  assert.deepEqual(getAllRequiredAssetPaths().sort(), [
+    '../C8_kompresja.jpeg',
+    '../remove_the_parking_202603291940.png',
+    '../sosnova-return-h265.mp4',
+    '../sosnova-reversed-h265.mp4',
+    './2nd-h265.mp4',
+    './2nd-reversed-h265.mp4',
+    './2nd.png',
+    './between-h265.mp4',
+    './between-reversed-h265.mp4',
+    './master-plan-h265.mp4'
   ]);
 });
