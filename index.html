@@ -116,7 +116,9 @@
     <div class="info">Loading videos...</div>
     <footer>&copy; 2026 Video Scrub PoC</footer>
 
-    <script>
+    <script type="module">
+        import { createScrollSampler } from './scrub-controller.js';
+
         const v1 = document.getElementById('v1');
         const v2 = document.getElementById('v2');
         const container = document.getElementById('video-container');
@@ -174,12 +176,10 @@
         });
 
         let latestScrollY = 0;
-        let rafScheduled = false;
         let touchStartY = 0;
         let scrollAtTouchStart = 0;
 
         function scrubFrame() {
-            rafScheduled = false;
             if (!isLoaded) return;
             const totalScrollable = container.offsetHeight - window.innerHeight;
             const scrollPercent = Math.max(0, Math.min(1, latestScrollY / totalScrollable));
@@ -187,12 +187,13 @@
             if (v2.duration) v2.currentTime = v2.duration * scrollPercent;
         }
 
-        function scheduleFrame() {
-            if (!rafScheduled) {
-                rafScheduled = true;
-                requestAnimationFrame(scrubFrame);
+        const scrollSampler = createScrollSampler({
+            readScrollY: () => window.pageYOffset || document.documentElement.scrollTop || 0,
+            onScrollPosition: (scrollY) => {
+                latestScrollY = scrollY;
+                scrubFrame();
             }
-        }
+        });
 
         // Start loading the blobs immediately
         preloadVideos();
@@ -212,13 +213,27 @@
         window.addEventListener('touchmove', (e) => {
             const dy = touchStartY - e.touches[0].clientY;
             latestScrollY = Math.max(0, scrollAtTouchStart + dy);
-            scheduleFrame();
+            scrubFrame();
+            scrollSampler.wake();
         }, {passive: true});
 
         // scroll event covers momentum and non-touch scrolling (mouse wheel, keyboard)
         window.addEventListener('scroll', () => {
             latestScrollY = window.pageYOffset || document.documentElement.scrollTop;
-            scheduleFrame();
+            scrubFrame();
+            scrollSampler.wake();
+        }, {passive: true});
+
+        window.addEventListener('touchstart', () => {
+            scrollSampler.wake();
+        }, {passive: true});
+
+        window.addEventListener('touchend', () => {
+            scrollSampler.wake();
+        }, {passive: true});
+
+        window.addEventListener('resize', () => {
+            scrollSampler.wake();
         }, {passive: true});
     </script>
 </body>
