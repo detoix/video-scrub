@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Malente Hero</title>
+    <style>
+        :root {
+            --bg: #07111c;
+            --panel: rgba(7, 17, 28, 0.6);
+            --text: #f2efe8;
+            --muted: rgba(242, 239, 232, 0.72);
+            --line: rgba(242, 239, 232, 0.24);
+            --hotspot-fill: rgba(245, 203, 92, 0.34);
+            --hotspot-stroke: rgba(255, 231, 150, 0.96);
+            --hero-fade-ms: 250ms;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            overflow: hidden;
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            background: radial-gradient(circle at top, #13283f 0%, var(--bg) 55%, #02060b 100%);
+            color: var(--text);
+        }
+
+        .hero {
+            position: relative;
+            min-height: 100vh;
+            isolation: isolate;
+            background: #02060b;
+        }
+
+        .loading-overlay {
+            position: absolute;
+            inset: 0;
+            z-index: 5;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            background: radial-gradient(circle at top, rgba(19, 40, 63, 0.96) 0%, rgba(7, 17, 28, 0.98) 55%, rgba(2, 6, 11, 1) 100%);
+            transition: opacity 260ms ease, visibility 260ms ease;
+        }
+
+        .loading-overlay.hidden {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        .loading-card {
+            width: min(420px, 100%);
+            padding: 24px;
+            border: 1px solid var(--line);
+            border-radius: 28px;
+            background: linear-gradient(180deg, rgba(7, 17, 28, 0.74), rgba(7, 17, 28, 0.9));
+            backdrop-filter: blur(18px);
+        }
+
+        .loading-card h2 {
+            margin: 0 0 8px;
+            font-size: clamp(1.8rem, 4vw, 2.6rem);
+            line-height: 0.96;
+        }
+
+        .loading-card p {
+            margin: 0 0 18px;
+            color: var(--muted);
+            line-height: 1.5;
+        }
+
+        .loading-progress {
+            position: relative;
+            height: 10px;
+            border-radius: 999px;
+            overflow: hidden;
+            background: rgba(242, 239, 232, 0.12);
+        }
+
+        .loading-progress-bar {
+            height: 100%;
+            width: 0%;
+            border-radius: inherit;
+            background: linear-gradient(90deg, rgba(245, 203, 92, 0.92), rgba(255, 231, 150, 1));
+            transition: width 140ms ease;
+        }
+
+        .loading-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            margin-top: 12px;
+            font-size: 0.88rem;
+            color: rgba(255, 231, 150, 0.88);
+        }
+
+        .media-layer {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: opacity var(--hero-fade-ms) ease;
+        }
+
+        .media-layer.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .media-layer.visible {
+            opacity: 1;
+        }
+
+        #heroVideo {
+            background: #02060b;
+        }
+
+        .hero-overlay {
+            position: absolute;
+            inset: 0;
+            z-index: 2;
+            pointer-events: none;
+        }
+
+        .hero-overlay svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .hotspot {
+            fill: transparent;
+            stroke: transparent;
+            stroke-width: 0.5;
+            cursor: pointer;
+            pointer-events: auto;
+            transition: fill 180ms ease, stroke 180ms ease, stroke-width 180ms ease, opacity 180ms ease;
+        }
+
+        .hotspot.is-active {
+            fill: var(--hotspot-fill);
+            stroke: var(--hotspot-stroke);
+        }
+
+        .chrome {
+            position: relative;
+            z-index: 3;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            pointer-events: none;
+        }
+
+        .topbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 24px;
+        }
+
+        .brand {
+            padding: 10px 14px;
+            border: 1px solid var(--line);
+            border-radius: 999px;
+            background: var(--panel);
+            backdrop-filter: blur(14px);
+            letter-spacing: 0.14em;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+        }
+
+        .back-button {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 16px;
+            border: 1px solid var(--line);
+            border-radius: 999px;
+            background: var(--panel);
+            color: var(--text);
+            backdrop-filter: blur(14px);
+            font: inherit;
+            cursor: pointer;
+            pointer-events: auto;
+            transition: opacity 180ms ease, transform 180ms ease;
+        }
+
+        .back-button.hidden {
+            opacity: 0;
+            pointer-events: none;
+            transform: translateY(-8px);
+        }
+
+        .back-button svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        .caption {
+            max-width: 420px;
+            margin: 0 24px 28px;
+            padding: 18px 20px;
+            border: 1px solid var(--line);
+            border-radius: 24px;
+            background: linear-gradient(180deg, rgba(7, 17, 28, 0.52), rgba(7, 17, 28, 0.72));
+            backdrop-filter: blur(16px);
+            pointer-events: none;
+        }
+
+        .caption h1 {
+            margin: 0 0 8px;
+            font-size: clamp(2rem, 4vw, 3.25rem);
+            line-height: 0.96;
+        }
+
+        .caption p {
+            margin: 0;
+            color: var(--muted);
+            line-height: 1.5;
+        }
+
+        .status {
+            margin-top: 12px;
+            font-size: 0.82rem;
+            color: rgba(255, 231, 150, 0.88);
+        }
+
+        @media (max-width: 720px) {
+            .topbar {
+                padding: 16px;
+            }
+
+            .caption {
+                margin: 0 16px 18px;
+            }
+
+            .caption h1 {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <main class="hero">
+        <div id="loadingOverlay" class="loading-overlay">
+            <div class="loading-card">
+                <h2>Loading Malente</h2>
+                <p>The full experience is warming up before interactions unlock.</p>
+                <div class="loading-progress" aria-hidden="true">
+                    <div id="loadingProgressBar" class="loading-progress-bar"></div>
+                </div>
+                <div class="loading-meta">
+                    <span id="loadingProgressLabel">Preparing assets…</span>
+                    <span id="loadingProgressValue">0%</span>
+                </div>
+            </div>
+        </div>
+        <video
+            id="masterVideo"
+            class="media-layer visible"
+            preload="auto"
+            muted
+            loop
+            autoplay
+            playsinline
+            webkit-playsinline
+        ></video>
+        <img
+            id="startStill"
+            class="media-layer hidden"
+            src="./malente_master_plan.png"
+            alt="Malente master plan"
+        >
+        <video
+            id="heroVideo"
+            class="media-layer hidden"
+            preload="auto"
+            muted
+            playsinline
+            webkit-playsinline
+        ></video>
+        <img
+            id="endStill"
+            class="media-layer hidden"
+            src="./malente_close_up.png"
+            alt="Malente close up"
+        >
+
+        <div class="hero-overlay">
+            <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                <path id="hotspot1" class="hotspot"></path>
+            </svg>
+        </div>
+
+        <div class="chrome">
+            <div class="topbar">
+                <div class="brand">Malente</div>
+                <button id="backButton" class="back-button hidden" type="button" aria-label="Back to master plan">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M15 18l-6-6 6-6"></path>
+                    </svg>
+                    <span>Back</span>
+                </button>
+            </div>
+
+            <section class="caption">
+                <h1>Malente</h1>
+                <p>Hover the highlighted area to explore. Click to zoom in, use the back arrow to return to the master plan.</p>
+                <div id="status" class="status">Loading Malente video…</div>
+            </section>
+        </div>
+    </main>
+
+    <script type="module">
+        import { createHeroController } from './hero-controller.js';
+        import { createReversePlayback } from './reverse-playback.js';
+        import { createTraversal, getAllRequiredAssetPaths, getConnectionById, getNodeById, getOutgoingConnections, getPreloadVideoPathsForNode } from './graph-config.js';
+
+        const REVERSE_BLEND_WINDOW = 0.25;
+
+        const controller = createHeroController({ reverseBlendWindow: REVERSE_BLEND_WINDOW });
+        const masterVideo = document.getElementById('masterVideo');
+        const startStill = document.getElementById('startStill');
+        const heroVideo = document.getElementById('heroVideo');
+        const endStill = document.getElementById('endStill');
+        const backButton = document.getElementById('backButton');
+        const status = document.getElementById('status');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const loadingProgressBar = document.getElementById('loadingProgressBar');
+        const loadingProgressLabel = document.getElementById('loadingProgressLabel');
+        const loadingProgressValue = document.getElementById('loadingProgressValue');
+        const hotspotElements = [
+            document.getElementById('hotspot1')
+        ];
+
+        let currentVideoKey = null;
+        let pendingAction = null;
+        let experienceReady = false;
+        const backgroundPreloadPromises = new Map();
+        const imagePreloadPromises = new Map();
+
+        const reversePlayback = createReversePlayback({
+            stepSize: 1 / 30,
+            onSeek: (time) => {
+                heroVideo.currentTime = time;
+            },
+            onProgress: (time) => {
+                controller.handleReverseProgress(time);
+                setLayerVisibility(endStill, time <= REVERSE_BLEND_WINDOW);
+                setLayerVisibility(heroVideo, time > REVERSE_BLEND_WINDOW);
+            },
+            onComplete: () => {
+                completeReverse();
+            }
+        });
+
+        function setLayerVisibility(layer, isVisible) {
+            layer.classList.toggle('visible', isVisible);
+            layer.classList.toggle('hidden', !isVisible);
+        }
+
+        function setBackVisible(isVisible) {
+            backButton.classList.toggle('hidden', !isVisible);
+        }
+
+        function clearHotspots() {
+            hotspotElements.forEach((element) => {
+                element.removeAttribute('d');
+                element.classList.remove('is-active');
+                delete element.dataset.connectionId;
+                delete element.dataset.targetNodeId;
+                element.style.pointerEvents = 'none';
+            });
+        }
+
+        function renderNodeStill(nodeId) {
+            const node = getNodeById(nodeId);
+            if (!node) {
+                return;
+            }
+
+            startStill.src = node.stillPath;
+            startStill.alt = node.stillAlt;
+        }
+
+        async function ensureMasterVideo() {
+            const masterNode = getNodeById('master');
+            if (!masterNode?.idleVideoPath) {
+                return;
+            }
+
+            if (masterVideo.src && masterVideo.readyState >= 2) {
+                return;
+            }
+
+            masterVideo.src = masterNode.idleVideoPath;
+            masterVideo.load();
+
+            await new Promise((resolve, reject) => {
+                masterVideo.addEventListener('loadeddata', resolve, { once: true });
+                masterVideo.addEventListener('error', reject, { once: true });
+            });
+        }
+
+        function updateLoadingProgress(loadedCount, totalCount) {
+            const percent = totalCount === 0 ? 100 : Math.round((loadedCount / totalCount) * 100);
+            loadingProgressBar.style.width = `${percent}%`;
+            loadingProgressValue.textContent = `${percent}%`;
+            loadingProgressLabel.textContent = loadedCount >= totalCount
+                ? 'Experience ready.'
+                : `Loaded ${loadedCount} of ${totalCount} assets`;
+        }
+
+        function renderTargetStill(nodeId) {
+            const node = getNodeById(nodeId);
+            if (!node) {
+                return;
+            }
+
+            endStill.src = node.stillPath;
+            endStill.alt = node.stillAlt;
+        }
+
+        function syncNodeUi() {
+            const state = controller.getState();
+            const traversals = getOutgoingConnections(state.currentNodeId);
+            const isMaster = state.currentNodeId === 'master';
+
+            renderNodeStill(state.currentNodeId);
+            setLayerVisibility(masterVideo, isMaster);
+            setLayerVisibility(startStill, !isMaster);
+            setLayerVisibility(endStill, false);
+            setLayerVisibility(heroVideo, false);
+            setBackVisible(state.backVisible);
+            clearHotspots();
+
+            if (isMaster && experienceReady) {
+                masterVideo.play().catch(() => {});
+            }
+
+            traversals.forEach((traversal, index) => {
+                const element = hotspotElements[index];
+                if (!element) {
+                    return;
+                }
+
+                element.setAttribute('d', traversal.maskPath);
+                element.dataset.connectionId = traversal.connectionId;
+                element.dataset.targetNodeId = traversal.targetNodeId;
+                element.style.pointerEvents = 'auto';
+            });
+        }
+
+        function cancelReversePlayback() {
+            reversePlayback.cancel();
+        }
+
+        async function loadVideo(videoPath) {
+            if (currentVideoKey === videoPath && heroVideo.readyState >= 2) {
+                return;
+            }
+
+            heroVideo.pause();
+            heroVideo.src = videoPath;
+            heroVideo.load();
+
+            await new Promise((resolve, reject) => {
+                heroVideo.addEventListener('loadeddata', resolve, { once: true });
+                heroVideo.addEventListener('error', reject, { once: true });
+            });
+
+            currentVideoKey = videoPath;
+        }
+
+        function preloadVideoAsset(videoPath) {
+            if (!videoPath) {
+                return Promise.resolve();
+            }
+
+            if (backgroundPreloadPromises.has(videoPath)) {
+                return backgroundPreloadPromises.get(videoPath);
+            }
+
+            const preloadPromise = new Promise((resolve) => {
+                const preloadVideo = document.createElement('video');
+                preloadVideo.preload = 'auto';
+                preloadVideo.muted = true;
+                preloadVideo.playsInline = true;
+                preloadVideo.src = videoPath;
+
+                const done = () => {
+                    preloadVideo.removeEventListener('loadeddata', done);
+                    preloadVideo.removeEventListener('error', done);
+                    resolve();
+                };
+
+                preloadVideo.addEventListener('loadeddata', done, { once: true });
+                preloadVideo.addEventListener('error', done, { once: true });
+                preloadVideo.load();
+            });
+
+            backgroundPreloadPromises.set(videoPath, preloadPromise);
+            return preloadPromise;
+        }
+
+        function preloadImageAsset(imagePath) {
+            if (!imagePath) {
+                return Promise.resolve();
+            }
+
+            if (imagePreloadPromises.has(imagePath)) {
+                return imagePreloadPromises.get(imagePath);
+            }
+
+            const preloadPromise = new Promise((resolve) => {
+                const image = new Image();
+
+                const done = () => {
+                    image.removeEventListener('load', done);
+                    image.removeEventListener('error', done);
+                    resolve();
+                };
+
+                image.addEventListener('load', done, { once: true });
+                image.addEventListener('error', done, { once: true });
+                image.src = imagePath;
+            });
+
+            imagePreloadPromises.set(imagePath, preloadPromise);
+            return preloadPromise;
+        }
+
+        function preloadCurrentNodeVideos() {
+            const { currentNodeId } = controller.getState();
+
+            for (const videoPath of getPreloadVideoPathsForNode(currentNodeId)) {
+                preloadVideoAsset(videoPath).catch((error) => {
+                    console.error(error);
+                });
+            }
+        }
+
+        async function preloadExperienceAssets() {
+            const masterAssetPath = getNodeById('master')?.idleVideoPath ?? null;
+            const assetPaths = getAllRequiredAssetPaths();
+            let loadedCount = 0;
+
+            updateLoadingProgress(0, assetPaths.length);
+
+            await Promise.all(assetPaths.map(async (assetPath) => {
+                try {
+                    if (assetPath === masterAssetPath) {
+                        await ensureMasterVideo();
+                    } else if (/\.(mp4|webm|ogg)$/i.test(assetPath)) {
+                        await preloadVideoAsset(assetPath);
+                    } else {
+                        await preloadImageAsset(assetPath);
+                    }
+                } catch (error) {
+                    console.error(error);
+                } finally {
+                    loadedCount += 1;
+                    updateLoadingProgress(loadedCount, assetPaths.length);
+                }
+            }));
+        }
+
+        async function seekVideoTo(time) {
+            await new Promise((resolve) => {
+                const done = () => {
+                    heroVideo.removeEventListener('seeked', done);
+                    resolve();
+                };
+                heroVideo.addEventListener('seeked', done);
+                heroVideo.currentTime = time;
+            });
+        }
+
+        async function beginTraversal(action, traversal, verb) {
+            pendingAction = {
+                ...action,
+                traversal
+            };
+
+            renderTargetStill(action.targetNodeId);
+            cancelReversePlayback();
+            clearHotspots();
+            setBackVisible(false);
+            setLayerVisibility(endStill, false);
+            setLayerVisibility(masterVideo, controller.getState().currentNodeId === 'master');
+            setLayerVisibility(startStill, controller.getState().currentNodeId !== 'master');
+            setLayerVisibility(heroVideo, true);
+            status.textContent = verb;
+
+            try {
+                await loadVideo(traversal.playback.videoPath);
+            } catch (error) {
+                status.textContent = 'Video failed to load.';
+                console.error(error);
+                pendingAction = null;
+                syncNodeUi();
+                return false;
+            }
+
+            return true;
+        }
+
+        async function handleConnectionClick(event) {
+            if (!experienceReady) {
+                return;
+            }
+
+            const action = controller.handleConnectionClick({
+                connectionId: event.currentTarget.dataset.connectionId,
+                targetNodeId: event.currentTarget.dataset.targetNodeId,
+                backConnectionId: getNodeById(event.currentTarget.dataset.targetNodeId)?.backConnectionId ?? null
+            });
+            if (action.type !== 'play-forward') {
+                return;
+            }
+
+            const state = controller.getState();
+            const traversal = createTraversal(getConnectionById(action.connectionId), state.currentNodeId);
+            if (!traversal) {
+                return;
+            }
+
+            const ready = await beginTraversal(action, traversal, `Moving to ${getNodeById(action.targetNodeId)?.label ?? action.targetNodeId}…`);
+            if (!ready) {
+                return;
+            }
+
+            await seekVideoTo(0);
+            requestAnimationFrame(() => {
+                setLayerVisibility(masterVideo, false);
+                setLayerVisibility(startStill, false);
+            });
+
+            try {
+                await heroVideo.play();
+            } catch (error) {
+                status.textContent = 'Playback was blocked by the browser.';
+                console.error(error);
+            }
+        }
+
+        async function handleBackClick() {
+            if (!experienceReady) {
+                return;
+            }
+
+            const action = controller.handleBackClick();
+            if (action.type !== 'play-reverse') {
+                return;
+            }
+
+            const state = controller.getState();
+            const traversal = createTraversal(getConnectionById(action.connectionId), state.currentNodeId);
+            if (!traversal) {
+                return;
+            }
+
+            const ready = await beginTraversal(action, traversal, `Returning to ${getNodeById(action.targetNodeId)?.label ?? action.targetNodeId}…`);
+            if (!ready) {
+                return;
+            }
+
+            if (traversal.playback.mode === 'seek') {
+                await seekVideoTo(heroVideo.duration || 0);
+                requestAnimationFrame(() => {
+                    setLayerVisibility(masterVideo, false);
+                    setLayerVisibility(startStill, false);
+                    playSeekReverse();
+                });
+                return;
+            }
+
+            await seekVideoTo(0);
+            requestAnimationFrame(() => {
+                setLayerVisibility(masterVideo, false);
+                setLayerVisibility(startStill, false);
+            });
+
+            try {
+                await heroVideo.play();
+            } catch (error) {
+                status.textContent = 'Playback was blocked by the browser.';
+                console.error(error);
+            }
+        }
+
+        function playSeekReverse() {
+            cancelReversePlayback();
+            setLayerVisibility(endStill, false);
+            setLayerVisibility(heroVideo, true);
+            reversePlayback.start(heroVideo.currentTime);
+        }
+
+        function completeForward() {
+            controller.handleForwardEnded();
+            heroVideo.pause();
+            pendingAction = null;
+            syncNodeUi();
+            preloadCurrentNodeVideos();
+            status.textContent = `${getNodeById(controller.getState().currentNodeId)?.label ?? 'Node'} ready.`;
+        }
+
+        function completeReverse() {
+            controller.handleReverseComplete();
+            heroVideo.pause();
+            pendingAction = null;
+            syncNodeUi();
+            preloadCurrentNodeVideos();
+            status.textContent = `${getNodeById(controller.getState().currentNodeId)?.label ?? 'Node'} ready.`;
+        }
+
+        hotspotElements.forEach((element) => {
+            element.addEventListener('mouseenter', () => {
+                if (experienceReady && controller.getState().mode === 'node' && element.dataset.connectionId) {
+                    element.classList.add('is-active');
+                }
+            });
+
+            element.addEventListener('mouseleave', () => {
+                element.classList.remove('is-active');
+            });
+
+            element.addEventListener('click', handleConnectionClick);
+        });
+
+        backButton.addEventListener('click', handleBackClick);
+
+        heroVideo.addEventListener('ended', () => {
+            if (!pendingAction) {
+                return;
+            }
+
+            if (pendingAction.type === 'play-forward') {
+                completeForward();
+                return;
+            }
+
+            if (pendingAction.traversal.playback.mode === 'asset') {
+                completeReverse();
+            }
+        });
+
+        heroVideo.addEventListener('seeked', () => {
+            reversePlayback.handleSeeked(heroVideo.currentTime);
+        });
+
+        syncNodeUi();
+        preloadExperienceAssets().then(() => {
+            experienceReady = true;
+            loadingOverlay.classList.add('hidden');
+            syncNodeUi();
+            masterVideo.play().catch(() => {});
+            preloadCurrentNodeVideos();
+            status.textContent = 'Ready. Hover the highlighted area and click to explore.';
+        }).catch((error) => {
+            console.error(error);
+            experienceReady = true;
+            loadingOverlay.classList.add('hidden');
+            syncNodeUi();
+            status.textContent = 'Ready. Hover the highlighted area and click to explore.';
+        });
+        status.textContent = 'Loading Malente experience…';
+        window.addEventListener('beforeunload', cancelReversePlayback);
+    </script>
+</body>
+</html>
