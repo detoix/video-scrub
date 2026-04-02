@@ -2,12 +2,16 @@ export function createHeroController({ reverseBlendWindow = 0.25 } = {}) {
   let state = {
     mode: 'node',
     currentNodeId: 'master',
+    parentNodeId: null,
     pendingConnectionId: null,
     pendingBackConnectionId: null,
+    pendingParentNodeId: null,
+    pendingParentBackConnectionId: null,
     targetNodeId: null,
     backVisible: false,
     reverseBlendActive: false,
-    currentBackConnectionId: null
+    currentBackConnectionId: null,
+    currentParentBackConnectionId: null
   };
 
   function getState() {
@@ -31,6 +35,8 @@ export function createHeroController({ reverseBlendWindow = 0.25 } = {}) {
       mode: 'forward',
       pendingConnectionId: connectionId,
       pendingBackConnectionId: backConnectionId,
+      pendingParentNodeId: state.currentNodeId,
+      pendingParentBackConnectionId: state.currentBackConnectionId,
       targetNodeId,
       backVisible: false,
       reverseBlendActive: false
@@ -51,12 +57,16 @@ export function createHeroController({ reverseBlendWindow = 0.25 } = {}) {
     state = {
       mode: 'node',
       currentNodeId: state.targetNodeId,
+      parentNodeId: state.pendingParentNodeId,
       pendingConnectionId: null,
       pendingBackConnectionId: null,
+      pendingParentNodeId: null,
+      pendingParentBackConnectionId: null,
       targetNodeId: null,
       backVisible: state.targetNodeId !== 'master',
       reverseBlendActive: false,
-      currentBackConnectionId: state.pendingBackConnectionId
+      currentBackConnectionId: state.pendingBackConnectionId,
+      currentParentBackConnectionId: state.pendingParentBackConnectionId
     };
   }
 
@@ -65,20 +75,23 @@ export function createHeroController({ reverseBlendWindow = 0.25 } = {}) {
       return { type: 'noop' };
     }
 
+    const connectionId = state.currentBackConnectionId;
+    const targetNodeId = state.parentNodeId ?? 'master';
+
     state = {
       ...state,
       mode: 'reverse',
-      pendingConnectionId: state.currentBackConnectionId,
+      pendingConnectionId: connectionId,
       pendingBackConnectionId: null,
-      targetNodeId: 'master',
+      targetNodeId,
       backVisible: false,
       reverseBlendActive: false
     };
 
     return {
       type: 'play-reverse',
-      connectionId: state.currentBackConnectionId,
-      targetNodeId: 'master'
+      connectionId,
+      targetNodeId
     };
   }
 
@@ -98,15 +111,21 @@ export function createHeroController({ reverseBlendWindow = 0.25 } = {}) {
       return;
     }
 
+    const targetNodeId = state.targetNodeId;
+
     state = {
       mode: 'node',
-      currentNodeId: 'master',
+      currentNodeId: targetNodeId,
+      parentNodeId: null,
       pendingConnectionId: null,
       pendingBackConnectionId: null,
+      pendingParentNodeId: null,
+      pendingParentBackConnectionId: null,
       targetNodeId: null,
-      backVisible: false,
+      backVisible: targetNodeId !== 'master',
       reverseBlendActive: false,
-      currentBackConnectionId: null
+      currentBackConnectionId: state.currentParentBackConnectionId,
+      currentParentBackConnectionId: null
     };
   }
 
