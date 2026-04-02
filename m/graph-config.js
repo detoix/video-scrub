@@ -1,34 +1,53 @@
 export const NODES = [
   {
-    id: 'master',
-    label: 'Master Plan',
-    stillPath: './malente_master_plan.png',
-    stillAlt: 'Malente master plan',
-    idleVideoPath: './aerial_master_plan.mp4',
-    backConnectionId: null
+    id: "master",
+    label: "Master Plan",
+    stillPath: "./malente_master_plan.png",
+    stillAlt: "Malente master plan",
+    idleVideoPath: "./aerial_master_plan.mp4",
+    backConnectionId: null,
   },
   {
-    id: 'close-up-2',
-    label: 'Close Up',
-    stillPath: './malente_close_up_2.png',
-    stillAlt: 'Malente close up',
-    backConnectionId: 'master-close-up-2'
-  }
+    id: "close-up-2",
+    label: "Close Up",
+    stillPath: "./malente_close_up_2.png",
+    stillAlt: "Malente close up",
+    backConnectionId: "master-close-up-2",
+  },
+  {
+    id: "apartment",
+    label: "Apartment",
+    stillPath: "./apartment-close-up.png",
+    stillAlt: "Malente apartment",
+    backConnectionId: "close-up-2-to-apartment",
+  },
 ];
 
 export const CONNECTIONS = [
   {
-    id: 'master-close-up-2',
-    fromNodeId: 'master',
-    toNodeId: 'close-up-2',
-    label: 'Master to Close Up',
+    id: "master-close-up-2",
+    fromNodeId: "master",
+    toNodeId: "close-up-2",
+    label: "Master to Close Up",
     maskPaths: {
-      master: 'M 45 54 L 65 54 L 66 77 L 43 77 Z'
+      master: "M 45 54 L 65 54 L 66 77 L 43 77 Z",
     },
-    videoPath: './master-plan-to-close-up-2.mp4',
-    reverseMode: 'asset',
-    reverseVideoPath: './master-plan-to-close-up-2-reversed.mp4'
-  }
+    videoPath: "./master-plan-to-close-up-2.mp4",
+    reverseMode: "asset",
+    reverseVideoPath: "./master-plan-to-close-up-2-reversed.mp4",
+  },
+  {
+    id: "close-up-2-to-apartment",
+    fromNodeId: "close-up-2",
+    toNodeId: "apartment",
+    label: "Close Up to Apartment",
+    maskPaths: {
+      "close-up-2": "M 70 45 L 80 45 L 83 68 L 71 68 Z",
+    },
+    videoPath: "./building-to-apartment.mp4",
+    reverseMode: "asset",
+    reverseVideoPath: "./building-to-apartment-reversed.mp4",
+  },
 ];
 
 export function getNodeById(nodeId) {
@@ -36,7 +55,9 @@ export function getNodeById(nodeId) {
 }
 
 export function getConnectionById(connectionId) {
-  return CONNECTIONS.find((connection) => connection.id === connectionId) ?? null;
+  return (
+    CONNECTIONS.find((connection) => connection.id === connectionId) ?? null
+  );
 }
 
 export function getOutgoingConnections(nodeId) {
@@ -57,9 +78,9 @@ export function createTraversal(connection, currentNodeId) {
       targetNodeId: connection.toNodeId,
       maskPath: connection.maskPaths[currentNodeId] ?? null,
       playback: {
-        mode: 'forward',
-        videoPath: connection.videoPath
-      }
+        mode: "forward",
+        videoPath: connection.videoPath,
+      },
     };
   }
 
@@ -71,8 +92,11 @@ export function createTraversal(connection, currentNodeId) {
       maskPath: connection.maskPaths[currentNodeId] ?? null,
       playback: {
         mode: connection.reverseMode,
-        videoPath: connection.reverseMode === 'asset' ? connection.reverseVideoPath : connection.videoPath
-      }
+        videoPath:
+          connection.reverseMode === "asset"
+            ? connection.reverseVideoPath
+            : connection.videoPath,
+      },
     };
   }
 
@@ -91,7 +115,9 @@ export function getPreloadVideoPathsForNode(nodeId) {
 
   if (node?.backConnectionId) {
     const backConnection = getConnectionById(node.backConnectionId);
-    const backTraversal = backConnection ? createTraversal(backConnection, nodeId) : null;
+    const backTraversal = backConnection
+      ? createTraversal(backConnection, nodeId)
+      : null;
 
     if (backTraversal?.playback?.videoPath) {
       paths.add(backTraversal.playback.videoPath);
